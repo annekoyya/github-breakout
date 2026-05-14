@@ -1,0 +1,88 @@
+name: "GitHub Contribution Breakout"
+description: "Generates a Breakout-style SVG from your GitHub contribution graph."
+author: "github-breakout"
+
+branding:
+  icon: "zap"
+  color: "green"
+
+inputs:
+  github_username:
+    description: "GitHub username to fetch contributions for."
+    required: true
+    default: ${{ github.repository_owner }}
+
+  github_token:
+    description: "GitHub personal access token (needs repo + read:user scopes). Falls back to GITHUB_TOKEN."
+    required: false
+    default: ${{ github.token }}
+
+  output_path:
+    description: "Directory to write output SVG files into."
+    required: false
+    default: "./output"
+
+  enable_ghost_bricks:
+    description: "If true, render 0-contribution days as visible ghost bricks."
+    required: false
+    default: "false"
+
+  paddle_color:
+    description: "Hex color for the paddle. Example: #FF5722"
+    required: false
+    default: "#FF5722"
+
+  ball_color:
+    description: "Hex color for the ball. Example: #FFEB3B"
+    required: false
+    default: "#FFEB3B"
+
+  bricks_colors:
+    description: >
+      Comma-separated list of exactly 5 hex colors representing contribution levels 0-4.
+      Example: #EBEDF0,#9BE9A8,#40C463,#30A14E,#216E39
+    required: false
+    default: "#EBEDF0,#9BE9A8,#40C463,#30A14E,#216E39"
+
+outputs:
+  light_svg_path:
+    description: "Path to the generated light theme SVG."
+    value: ${{ steps.generate.outputs.light_svg_path }}
+
+  dark_svg_path:
+    description: "Path to the generated dark theme SVG."
+    value: ${{ steps.generate.outputs.dark_svg_path }}
+
+  custom_svg_path:
+    description: "Path to the generated custom theme SVG."
+    value: ${{ steps.generate.outputs.custom_svg_path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Generate SVG files
+      id: generate
+      shell: bash
+      run: |
+        GHOST_FLAG=""
+        if [ "${{ inputs.enable_ghost_bricks }}" = "true" ]; then
+          GHOST_FLAG="--enable-ghost-bricks"
+        fi
+
+        python "${{ github.action_path }}/src/generate.py" \
+          --username "${{ inputs.github_username }}" \
+          --token "${{ inputs.github_token }}" \
+          --output "${{ inputs.output_path }}" \
+          --paddle-color "${{ inputs.paddle_color }}" \
+          --ball-color "${{ inputs.ball_color }}" \
+          --bricks-colors "${{ inputs.bricks_colors }}" \
+          $GHOST_FLAG
+
+        echo "light_svg_path=${{ inputs.output_path }}/light.svg"   >> $GITHUB_OUTPUT
+        echo "dark_svg_path=${{ inputs.output_path }}/dark.svg"     >> $GITHUB_OUTPUT
+        echo "custom_svg_path=${{ inputs.output_path }}/custom.svg" >> $GITHUB_OUTPUT
